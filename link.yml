@@ -1,66 +1,66 @@
 - class_name: 网上邻居
   class_desc: 我的小伙伴们
   link_list:
-    - name: 清羽飞扬
-      link: https://blog.liushen.fun
-      avatar: https://blog.liushen.fun/info/avatar.ico
-      descr: 柳影曳曳，清酒孤灯，扬笔撒墨，心境如霜
-      feeds: https://blog.liushen.fun/atom.xml
-      friendslink: https://blog.liushen.fun/link
-      siteshot: https://blog.liushen.fun/info/siteshot.jpg
-    - name: 纸鹿摸鱼处
-      link: https://blog.zhilu.site
-      avatar: https://www.zhilu.site/api/avatar.png
-      descr: 纸鹿至麓不知路，支炉制露不止漉
-      feeds: https://blog.zhilu.site/atom.xml
-      friendslink: https://blog.zhilu.site/link
-      siteshot: https://imgbed.081531.xyz/file/telegram/image.png
-    - name: iMaeGoo’s Blog
-      link: https://www.imaegoo.com
-      avatar: https://cdn.jsdelivr.net/npm/imaegoo/avatar.jpg
-      descr: 虹墨空间站
-      siteshot: https://jsd.268682.xyz/gh/Kemeow0815/img@main/img/iMaeGoo.webp
-      feeds: https://www.imaegoo.com/atom.xml
-      friendslink: https://www.imaegoo.com/friends
-    - name: 张洪Heo
-      link: https://blog.zhheo.com
-      avatar: https://img.zhheo.com/i/67d8fa75943e4.webp
-      descr: 分享设计与科技生活
-      siteshot: https://img.zhheo.com/i/67d8fb3c51399.webp
-      feeds: https://blog.zhheo.com/atom.xml
-      friendslink: https://blog.zhheo.com/link
-    - name: 二叉树树
-      link: https://2x.nz
-      avatar: https://q2.qlogo.cn/headimg_dl?dst_uin=2726730791&spec=0
-      descr: Protect What You Love.
-      siteshot: https://jsd.268682.xyz/gh/Kemeow0815/img@main/img/2xnz.webp
-      feeds: https://2x.nz/rss.xml
-      friendslink: https://2x.nz/friends
-    - name: 友链检测测试
-      link: https://friendlink-check.invalid
-      avatar: https://friendlink-check.invalid/avatar.png
-      descr: 用于验证友链可达性检测与自动隔离流程
-      feeds: https://friendlink-check.invalid/feed.xml
-      friendslink: https://friendlink-check.invalid/links
-      siteshot: https://friendlink-check.invalid/siteshot.png
+  - name: 清羽飞扬
+    link: https://blog.liushen.fun
+    avatar: https://blog.liushen.fun/info/avatar.ico
+    descr: 柳影曳曳，清酒孤灯，扬笔撒墨，心境如霜
+    feeds: https://blog.liushen.fun/atom.xml
+    friendslink: https://blog.liushen.fun/link
+    siteshot: https://blog.liushen.fun/info/siteshot.jpg
+  - name: 纸鹿摸鱼处
+    link: https://blog.zhilu.site
+    avatar: https://www.zhilu.site/api/avatar.png
+    descr: 纸鹿至麓不知路，支炉制露不止漉
+    feeds: https://blog.zhilu.site/atom.xml
+    friendslink: https://blog.zhilu.site/link
+    siteshot: https://imgbed.081531.xyz/file/telegram/image.png
+  - name: iMaeGoo’s Blog
+    link: https://www.imaegoo.com
+    avatar: https://cdn.jsdelivr.net/npm/imaegoo/avatar.jpg
+    descr: 虹墨空间站
+    siteshot: https://jsd.268682.xyz/gh/Kemeow0815/img@main/img/iMaeGoo.webp
+    feeds: https://www.imaegoo.com/atom.xml
+    friendslink: https://www.imaegoo.com/friends
+  - name: 张洪Heo
+    link: https://blog.zhheo.com
+    avatar: https://img.zhheo.com/i/67d8fa75943e4.webp
+    descr: 分享设计与科技生活
+    siteshot: https://img.zhheo.com/i/67d8fb3c51399.webp
+    feeds: https://blog.zhheo.com/atom.xml
+    friendslink: https://blog.zhheo.com/link
+  - name: 二叉树树
+    link: https://2x.nz
+    avatar: https://q2.qlogo.cn/headimg_dl?dst_uin=2726730791&spec=0
+    descr: Protect What You Love.
+    siteshot: https://jsd.268682.xyz/gh/Kemeow0815/img@main/img/2xnz.webp
+    feeds: https://2x.nz/rss.xml
+    friendslink: https://2x.nz/friends
+  - name: 友链检测测试
+    link: https://friendlink-check.invalid
+    avatar: https://friendlink-check.invalid/avatar.png
+    descr: 用于验证友链可达性检测与自动隔离流程
+    feeds: https://friendlink-check.invalid/feed.xml
+    friendslink: https://friendlink-check.invalid/links
+    siteshot: https://friendlink-check.invalid/siteshot.png
 - class_name: 博客主题作者
   class_desc: 大佬们~
   link_list:
-    - name: Homulilly
-      link: https://homulilly.com
-      avatar: https://homulilly.com/images/avatar.jpg
-      descr: 圆环之外，仍有未尽之愿。
-      feeds: https://homulilly.com/atom.xml
-      friendslink: https://homulilly.com/links
-      tags:
-        - Hexo
-      siteshot: https://img.nep.me/blog/homulilly-home.webp
-    - name: CWorld Site
-      link: https://cworld0.com
-      avatar: https://gravatar.loli.net/avatar/1ffe42aa45a6b1444a786b1f32dfa8aa?s=200
-      descr: 求知若愚，虚怀若谷
-      feeds: https://cworld0.com/rss.xml
-      friendslink: https://cworld0.com/links
-      siteshot: https://mifun.081531.xyz/api/files/content/rZXcgZqDLQFLmk4Ql3ArMw/preview
-      tags:
-        - Astro
+  - name: Homulilly
+    link: https://homulilly.com
+    avatar: https://homulilly.com/images/avatar.jpg
+    descr: 圆环之外，仍有未尽之愿。
+    feeds: https://homulilly.com/atom.xml
+    friendslink: https://homulilly.com/links
+    tags:
+    - Hexo
+    siteshot: https://img.nep.me/blog/homulilly-home.webp
+  - name: CWorld Site
+    link: https://cworld0.com
+    avatar: https://gravatar.loli.net/avatar/1ffe42aa45a6b1444a786b1f32dfa8aa?s=200
+    descr: 求知若愚，虚怀若谷
+    feeds: https://cworld0.com/rss.xml
+    friendslink: https://cworld0.com/links
+    siteshot: https://mifun.081531.xyz/api/files/content/rZXcgZqDLQFLmk4Ql3ArMw/preview
+    tags:
+    - Astro
