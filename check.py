@@ -271,6 +271,25 @@ def build_output(groups, results):
     return output
 
 
+def build_fcircle_output(groups, results):
+    friends = []
+    skipped_missing_fields = 0
+
+    for group_index, link_index, entry in collect_entries(groups):
+        check_result = results.get((group_index, link_index))
+        if not check_result or check_result.get('status') != '正常':
+            continue
+
+        values = [entry.get('name'), entry.get('link'), entry.get('friendslink'), entry.get('avatar')]
+        if not all(isinstance(value, str) and value.strip() for value in values):
+            skipped_missing_fields += 1
+            continue
+
+        friends.append([value.strip() for value in values])
+
+    return {'friends': friends}, skipped_missing_fields
+
+
 def main():
     print(f'读取配置文件: {YAML_FILE}')
     with open(YAML_FILE, 'r', encoding='utf-8') as file:
@@ -283,18 +302,23 @@ def main():
     print(f'共发现 {len(collect_entries(groups))} 个链接，手动覆盖 {len(manual_checks)} 条')
     results = check_entries(groups, manual_checks)
     output = build_output(groups, results)
+    fcircle_output, skipped_missing_fields = build_fcircle_output(groups, results)
+    fcircle_output_path = os.getenv('FCIRCLE_OUTPUT_PATH', os.path.join('public', 'friend.json'))
 
-    os.makedirs(os.path.dirname(OUTPUT_PATH) or '.', exist_ok=True)
-    with open(OUTPUT_PATH, 'w', encoding='utf-8') as file:
-        json.dump(output, file, ensure_ascii=False, indent=2)
-        file.write('\n')
+    for path, payload in ((OUTPUT_PATH, output), (fcircle_output_path, fcircle_output)):
+        os.makedirs(os.path.dirname(path) or '.', exist_ok=True)
+        with open(path, 'w', encoding='utf-8') as file:
+            json.dump(payload, file, ensure_ascii=False, indent=2)
+            file.write('\n')
 
     all_results = list(results.values())
     normal_count = sum(item['status'] == '正常' for item in all_results)
-    print(f'结果已写入: {OUTPUT_PATH}')
+    print(f'检测结果已写入: {OUTPUT_PATH}')
+    print(f'fcircle 数据已写入: {fcircle_output_path}')
     print(f'总计: {len(all_results)}')
     print(f'正常: {normal_count}')
     print(f'异常: {len(all_results) - normal_count}')
+    print(f'fcircle 导出: {len(fcircle_output["friends"])}，缺少必填字段跳过: {skipped_missing_fields}')
 
 
 if __name__ == '__main__':

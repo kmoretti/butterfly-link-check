@@ -84,6 +84,8 @@ Fork 本项目，在 Vercel 中导入并设置以下环境变量。
 
 检查会保留 `link.yml` 中的全部字段，并在 `check_links.json` 中附加 `status`、检查时间、检查方式和诊断信息。人工覆盖保存在 `manual_check.json`，使用规范化后的 URL 匹配，并在网络检查之前生效。
 
+每次检测还会在本仓库生成 fcircle 格式的 `public/friend.json`。它仅包含状态为“正常”、且 `name`、`link`、`friendslink`、`avatar` 均完整的友链，格式为 `{ "friends": [[名称, 站点地址, 友链页, 头像]] }`。部署本项目后，通过 `https://你的 checker 域名/friend.json` 订阅该文件；不需要跨仓库 Token 或额外 workflow。
+
 ### 4. 与 FriendLink Verify 集成
 
 将 FriendLink Verify 部署环境设置为：

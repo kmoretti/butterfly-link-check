@@ -82,6 +82,32 @@ class LinkCheckerTests(unittest.TestCase):
         self.assertEqual(response['httpStatus'], 204)
         self.assertEqual(response['method'], 'direct-head')
 
+    def test_build_fcircle_output_keeps_only_healthy_complete_links_in_source_order(self):
+        groups = [
+            {'class_name': 'First', 'link_list': [
+                {'name': 'Healthy first', 'link': 'https://first.example', 'friendslink': 'https://first.example/friends', 'avatar': 'https://first.example/avatar.png'},
+                {'name': 'Unhealthy', 'link': 'https://down.example', 'friendslink': 'https://down.example/friends', 'avatar': 'https://down.example/avatar.png'},
+            ]},
+            {'class_name': 'Second', 'link_list': [
+                {'name': 'Missing friend page', 'link': 'https://missing.example', 'avatar': 'https://missing.example/avatar.png'},
+                {'name': 'Healthy second', 'link': 'https://second.example', 'friendslink': 'https://second.example/friends', 'avatar': 'https://second.example/avatar.png'},
+            ]},
+        ]
+        results = {
+            (0, 0): CHECKER.result('正常', 'manual', '2026-08-16T00:00:00Z'),
+            (0, 1): CHECKER.result('不可访问', 'direct', '2026-08-16T00:00:00Z'),
+            (1, 0): CHECKER.result('正常', 'manual', '2026-08-16T00:00:00Z'),
+            (1, 1): CHECKER.result('正常', 'manual', '2026-08-16T00:00:00Z'),
+        }
+
+        output, skipped = CHECKER.build_fcircle_output(groups, results)
+
+        self.assertEqual(output, {'friends': [
+            ['Healthy first', 'https://first.example', 'https://first.example/friends', 'https://first.example/avatar.png'],
+            ['Healthy second', 'https://second.example', 'https://second.example/friends', 'https://second.example/avatar.png'],
+        ]})
+        self.assertEqual(skipped, 1)
+
 
 def public_resolver(hostname, port, type):
     return [(socket.AF_INET, socket.SOCK_STREAM, 6, '', ('93.184.216.34', 0))]
