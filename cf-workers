@@ -44,7 +44,7 @@ function validateTarget(value) {
 }
 
 async function handleRequest(request) {
-  const expectedToken = WORKER_CHECK_TOKEN
+  const expectedToken = typeof WORKER_CHECK_TOKEN === 'string' ? WORKER_CHECK_TOKEN : ''
   const authorization = request.headers.get('Authorization')
   if (!expectedToken || authorization !== `Bearer ${expectedToken}`) {
     return json({ status: 'down', error: 'Unauthorized' }, 401)

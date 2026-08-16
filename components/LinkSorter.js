@@ -181,7 +181,10 @@ export default function LinkSorter({ content, onChange, onSave, isLoading }) {
                                   <input className="sorter-input field-avatar" type="url" value={link.avatar || ''} onChange={event => updateLink(sectionIndex, linkIndex, current => ({ ...current, avatar: event.target.value }))} aria-label="头像地址" placeholder="头像 URL" />
                                   <input className="sorter-input field-descr" value={link.descr || ''} onChange={event => updateLink(sectionIndex, linkIndex, current => ({ ...current, descr: event.target.value }))} aria-label="站点描述" placeholder="描述" />
                                 </div>
-                                <details className="link-extensions" open={isExpanded} onToggle={event => setExpanded(previous => ({ ...previous, [key]: event.currentTarget.open }))}>
+                                <details className="link-extensions" open={isExpanded} onToggle={event => {
+                                  const isOpen = event.currentTarget.open
+                                  setExpanded(previous => ({ ...previous, [key]: isOpen }))
+                                }}>
                                   <summary>扩展字段</summary>
                                   <div className="extension-grid">
                                     <input className="sorter-input" type="url" value={link.friendslink || ''} onChange={event => updateLink(sectionIndex, linkIndex, current => updateOptionalField(current, 'friendslink', event.target.value))} aria-label="友链页面" placeholder="友链页面 URL" />
