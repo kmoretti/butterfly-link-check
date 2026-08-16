@@ -1,6 +1,10 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useEffect, useState, useRef, useCallback } from 'react'
 
-export default function FileEditor({ fileName, content, isLoading, onContentChange, onSave }) {
+function escapeRegExp(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
+export default function FileEditor({ fileName, content, isLoading, onContentChange, onSave, saveVersion }) {
   const contentRef = useRef(null)
   const backdropRef = useRef(null)
   const [searchTerm, setSearchTerm] = useState('')
@@ -8,17 +12,21 @@ export default function FileEditor({ fileName, content, isLoading, onContentChan
   const [currentMatchIndex, setCurrentMatchIndex] = useState(0)
   const [dirty, setDirty] = useState(false)
 
-  const handleChange = useCallback((e) => {
-    onContentChange(e.target.value)
+  useEffect(() => {
+    setDirty(false)
+  }, [fileName, saveVersion])
+
+  const handleChange = useCallback((event) => {
+    onContentChange(event.target.value)
     setDirty(true)
   }, [onContentChange])
 
   const scrollToMatch = useCallback((index) => {
-    const ta = contentRef.current
-    if (!ta) return
-    const lineHeight = parseFloat(window.getComputedStyle(ta).lineHeight) || 20
+    const textarea = contentRef.current
+    if (!textarea) return
+    const lineHeight = parseFloat(window.getComputedStyle(textarea).lineHeight) || 20
     const lines = content.substring(0, index).split('\n').length
-    ta.scrollTop = Math.max(0, (lines - 1) * lineHeight - ta.clientHeight * 0.25)
+    textarea.scrollTop = Math.max(0, (lines - 1) * lineHeight - textarea.clientHeight * 0.25)
   }, [content])
 
   const handleScroll = useCallback(() => {
@@ -33,43 +41,39 @@ export default function FileEditor({ fileName, content, isLoading, onContentChan
       setSearchResults([])
       return
     }
-    const regex = new RegExp(searchTerm, 'gi')
+    const regex = new RegExp(escapeRegExp(searchTerm), 'gi')
     const matches = []
     let match
-    while ((match = regex.exec(content)) !== null) {
-      matches.push(match.index)
-    }
+    while ((match = regex.exec(content)) !== null) matches.push(match.index)
     setSearchResults(matches)
     setCurrentMatchIndex(0)
-    if (matches.length > 0) scrollToMatch(matches[0])
+    if (matches.length) scrollToMatch(matches[0])
   }, [searchTerm, content, scrollToMatch])
 
-  const navigateMatch = (dir) => {
-    if (searchResults.length === 0) return
-    const next = (currentMatchIndex + dir + searchResults.length) % searchResults.length
+  const navigateMatch = (direction) => {
+    if (!searchResults.length) return
+    const next = (currentMatchIndex + direction + searchResults.length) % searchResults.length
     setCurrentMatchIndex(next)
     scrollToMatch(searchResults[next])
   }
 
+  const save = async () => {
+    const saved = await onSave()
+    if (saved) setDirty(false)
+  }
+
   function escapeHtml(text) {
-    return text
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
+    return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
   }
 
   function highlightContent(text, term, currentIndex) {
     if (!term.trim()) return escapeHtml(text)
-    const escapedTerm = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-    const regex = new RegExp(`(${escapedTerm})`, 'gi')
-    const parts = text.split(regex)
+    const parts = text.split(new RegExp(`(${escapeRegExp(term)})`, 'gi'))
     let matchCount = 0
-    return parts.map((part, i) => {
-      if (i % 2 === 1) {
-        const isCurrent = matchCount === currentIndex
-        matchCount++
-        const cls = isCurrent ? 'highlight-mark current-match' : 'highlight-mark'
-        return `<mark class="${cls}">${escapeHtml(part)}</mark>`
+    return parts.map((part, index) => {
+      if (index % 2 === 1) {
+        const className = matchCount++ === currentIndex ? 'highlight-mark current-match' : 'highlight-mark'
+        return `<mark class="${className}">${escapeHtml(part)}</mark>`
       }
       return escapeHtml(part)
     }).join('')
@@ -78,65 +82,24 @@ export default function FileEditor({ fileName, content, isLoading, onContentChan
   return (
     <main className="main-content">
       <div className="editor-header">
-        <div className="editor-title">
-          <h3>
-            编辑: <code>{fileName}</code>
-            {dirty && <span className="unsaved-badge">未保存</span>}
-          </h3>
-        </div>
+        <div className="editor-title"><h3>编辑: <code>{fileName}</code>{dirty && <span className="unsaved-badge">未保存</span>}</h3></div>
         <div className="editor-actions">
           <div className="search-toolbar">
-            <input
-              type="text"
-              placeholder="搜索..."
-              value={searchTerm}
-              onChange={e => setSearchTerm(e.target.value)}
-              className="search-input"
-            />
-            {searchResults.length > 0 && (
-              <div className="search-nav">
-                <button onClick={() => navigateMatch(-1)} disabled={searchResults.length <= 1}>
-                  ⬆
-                </button>
-                <span className="search-count">
-                  {currentMatchIndex + 1}/{searchResults.length}
-                </span>
-                <button onClick={() => navigateMatch(1)} disabled={searchResults.length <= 1}>
-                  ⬇
-                </button>
-              </div>
-            )}
+            <input type="text" placeholder="搜索..." value={searchTerm} onChange={event => setSearchTerm(event.target.value)} className="search-input" aria-label="搜索文件内容" />
+            {searchResults.length > 0 && <div className="search-nav">
+              <button onClick={() => navigateMatch(-1)} disabled={searchResults.length <= 1} aria-label="上一个匹配">⬆</button>
+              <span className="search-count">{currentMatchIndex + 1}/{searchResults.length}</span>
+              <button onClick={() => navigateMatch(1)} disabled={searchResults.length <= 1} aria-label="下一个匹配">⬇</button>
+            </div>}
           </div>
-          <button
-            onClick={() => { onSave(); setDirty(false) }}
-            disabled={isLoading || !dirty}
-            className="save-btn"
-          >
-            {isLoading ? '保存中...' : '💾 保存'}
-          </button>
+          <button onClick={save} disabled={isLoading || !dirty} className="save-btn">{isLoading ? '保存中...' : '保存'}</button>
         </div>
       </div>
 
-      {isLoading ? (
-        <div className="loading-screen">加载文件中...</div>
-      ) : (
+      {isLoading ? <div className="loading-screen">加载文件中...</div> : (
         <div className="editor-wrapper">
-          <pre
-            ref={backdropRef}
-            className="editor-highlighter"
-            dangerouslySetInnerHTML={{
-              __html: highlightContent(content, searchTerm, currentMatchIndex)
-            }}
-            aria-hidden="true"
-          />
-          <textarea
-            ref={contentRef}
-            value={content}
-            onChange={handleChange}
-            onScroll={handleScroll}
-            spellCheck={false}
-            className="code-editor"
-          />
+          <pre ref={backdropRef} className="editor-highlighter" dangerouslySetInnerHTML={{ __html: highlightContent(content, searchTerm, currentMatchIndex) }} aria-hidden="true" />
+          <textarea ref={contentRef} value={content} onChange={handleChange} onScroll={handleScroll} spellCheck={false} className="code-editor" aria-label={`${fileName} 文件内容`} />
         </div>
       )}
     </main>

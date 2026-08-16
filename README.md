@@ -73,14 +73,29 @@ Fork 本项目，在 Vercel 中导入并设置以下环境变量。
 | `GITHUB_REPO` | 是 | 仓库名，格式 `username/repo` |
 | `FILE_1_PATH` | 否 | `link.yml` 路径（默认 `link.yml`） |
 | `FILE_2_PATH` | 否 | `manual_check.json` 路径（默认 `manual_check.json`） |
-### 3. GitHub Secrets（Settings → Secrets and variables → Actions → Repository secrets）
+### 3. GitHub Actions 与检测密钥
 
-| 名称 | 必填 | 说明 |
+工作流使用仓库内建的 `GITHUB_TOKEN` 提交 `public/check_links.json`，不需要 `PAT_TOKEN`。工作流已显式申请 `contents: write` 权限；仓库或组织策略不能禁止 GitHub Actions 写入仓库内容。
+
+| Secret | 必填 | 说明 |
 |------|------|------|
-| `PAT_TOKEN` | 是 | 用于 CI 提交结果的 Personal Access Token（`repo` 权限） |
-| `CF_WORKER_URL` | 否 | Cloudflare Worker 地址（不填则跳过该检测阶段） |
+| `CF_WORKER_URL` | 否 | Cloudflare Worker 地址；与下方密钥同时配置才会启用 Worker 回退检测 |
+| `CF_WORKER_TOKEN` | 否 | Worker 绑定的 `WORKER_CHECK_TOKEN` 值，用于拒绝匿名检测请求 |
 
-### 4. 集成 Butterfly
+检查会保留 `link.yml` 中的全部字段，并在 `check_links.json` 中附加 `status`、检查时间、检查方式和诊断信息。人工覆盖保存在 `manual_check.json`，使用规范化后的 URL 匹配，并在网络检查之前生效。
+
+### 4. 与 FriendLink Verify 集成
+
+将 FriendLink Verify 部署环境设置为：
+
+```env
+GITHUB_REPO=kmoretti/butterfly-link-check
+GITHUB_FILE_PATH=link.yml
+```
+
+其 `GITHUB_TOKEN` 应为只对本仓库拥有 **Contents: Read and write** 权限的 fine-grained token。FriendLink Verify 审核通过后写入 `link.yml`，会自动触发本项目的检测工作流；不需要额外的跨仓库 Actions token 或 workflow dispatch。
+
+### 5. 集成 Butterfly
 
 部署完成后，将 `https://你的域名/check_links.json` 填入 Butterfly 主题的友链设置页面。
 

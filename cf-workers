@@ -1,40 +1,79 @@
-// Cloudflare Worker code to check website accessibility
+const PRIVATE_HOSTNAMES = new Set(['localhost', 'localhost.localdomain'])
+
 addEventListener('fetch', event => {
   event.respondWith(handleRequest(event.request))
 })
 
-async function handleRequest(request) {
-  const url = new URL(request.url)
+function json(body, status = 200) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { 'Content-Type': 'application/json' },
+  })
+}
 
-  // 获取用户传递的 URL 参数
-  const targetUrl = url.searchParams.get('url')
+function isPrivateAddress(hostname) {
+  const value = hostname.toLowerCase().replace(/^\[|\]$/g, '')
+  if (PRIVATE_HOSTNAMES.has(value) || value.endsWith('.localhost')) return true
+  if (value === '::1' || value === '0:0:0:0:0:0:0:1') return true
+  if (/^127\./.test(value) || /^10\./.test(value) || /^192\.168\./.test(value) || /^169\.254\./.test(value)) return true
 
-  // 如果没有传递 URL 参数，返回 400 错误
-  if (!targetUrl) {
-    return new Response('Missing url parameter', { status: 400 })
+  const parts = value.split('.').map(Number)
+  if (parts.length === 4 && parts.every(Number.isInteger)) {
+    return parts[0] === 0 ||
+      parts[0] >= 224 ||
+      (parts[0] === 100 && parts[1] >= 64 && parts[1] <= 127) ||
+      (parts[0] === 172 && parts[1] >= 16 && parts[1] <= 31)
   }
 
+  return value.startsWith('fc') || value.startsWith('fd') || value.startsWith('fe80:')
+}
+
+function validateTarget(value) {
+  let target
   try {
-    // 尝试访问目标网站
-    const response = await fetch(targetUrl, {
-      method: 'HEAD', // 只发送请求头，不下载整个内容
-      timeout: 5000, // 设置请求超时为 5 秒
+    target = new URL(value)
+  } catch {
+    return { error: 'Invalid URL' }
+  }
+
+  if (!['http:', 'https:'].includes(target.protocol) || isPrivateAddress(target.hostname)) {
+    return { error: 'Target URL is not publicly reachable' }
+  }
+
+  return { target: target.toString() }
+}
+
+async function handleRequest(request) {
+  const expectedToken = WORKER_CHECK_TOKEN
+  const authorization = request.headers.get('Authorization')
+  if (!expectedToken || authorization !== `Bearer ${expectedToken}`) {
+    return json({ status: 'down', error: 'Unauthorized' }, 401)
+  }
+
+  const requestUrl = new URL(request.url)
+  const targetUrl = requestUrl.searchParams.get('url')
+  if (!targetUrl) return json({ status: 'down', error: 'Missing url parameter' }, 400)
+
+  const target = validateTarget(targetUrl)
+  if (target.error) return json({ status: 'down', error: target.error }, 400)
+
+  try {
+    let response = await fetch(target.target, {
+      method: 'HEAD',
+      redirect: 'manual',
+      signal: AbortSignal.timeout(5000),
     })
 
-    // 检查返回的状态码
-    if (response.ok) {
-      return new Response(JSON.stringify({ status: 'up' }), {
-        headers: { 'Content-Type': 'application/json' }
-      })
-    } else {
-      return new Response(JSON.stringify({ status: 'down' }), {
-        headers: { 'Content-Type': 'application/json' }
+    if (response.status === 405 || response.status === 501) {
+      response = await fetch(target.target, {
+        method: 'GET',
+        redirect: 'manual',
+        signal: AbortSignal.timeout(5000),
       })
     }
+
+    return json({ status: response.ok || (response.status >= 300 && response.status < 400) ? 'up' : 'down', httpStatus: response.status })
   } catch (error) {
-    // 捕获任何错误，如网络不可达等
-    return new Response(JSON.stringify({ status: 'down', error: error.message }), {
-      headers: { 'Content-Type': 'application/json' }
-    })
+    return json({ status: 'down', error: error.message })
   }
 }

@@ -15,20 +15,21 @@ function getToken() {
 
 async function apiFetch(url, options = {}) {
   const token = getToken()
-  const res = await fetch(url, {
+  const response = await fetch(url, {
     ...options,
-    headers: {
-      ...options.headers,
-      Authorization: `Bearer ${token}`,
-    },
+    headers: { ...options.headers, Authorization: `Bearer ${token}` },
   })
-  if (res.status === 401) {
+  if (response.status === 401) {
     sessionStorage.removeItem('auth_token')
     window.location.reload()
     throw new Error('未授权')
   }
-  const data = await res.json()
-  if (!res.ok) throw new Error(data.error || '请求失败')
+  const data = await response.json()
+  if (!response.ok) {
+    const error = new Error(data.error || '请求失败')
+    error.status = response.status
+    throw error
+  }
   return data
 }
 
@@ -38,38 +39,44 @@ export default function Admin() {
   const [fileSha, setFileSha] = useState('')
   const [activeFile, setActiveFile] = useState(null)
   const [fileLoading, setFileLoading] = useState(false)
+  const [saveVersion, setSaveVersion] = useState(0)
+  const [message, setMessage] = useState(null)
 
-  const loadFile = useCallback(async (fileName) => {
+  const loadFile = useCallback(async (fileName = activeFile) => {
+    if (!fileName) return false
     setFileLoading(true)
-    setActiveFile(fileName)
     try {
       const data = await apiFetch(`/api/file?name=${fileName}`)
+      setActiveFile(fileName)
       setFileContent(data.content)
       setFileSha(data.sha)
-    } catch (err) {
-      setFileContent('')
-      setFileSha('')
-      alert('加载失败: ' + err.message)
+      setSaveVersion(version => version + 1)
+      setMessage({ type: 'success', text: '已加载远端文件。' })
+      return true
+    } catch (error) {
+      setMessage({ type: 'error', text: `加载失败：${error.message}` })
+      return false
     } finally {
       setFileLoading(false)
     }
-  }, [])
+  }, [activeFile])
 
   useEffect(() => {
-    if (isAuthenticated && !activeFile) {
-      loadFile('link.yml')
-    }
+    if (isAuthenticated && !activeFile) loadFile('link.yml')
   }, [isAuthenticated, activeFile, loadFile])
 
   const handleFileSelect = useCallback((fileName, content, sha) => {
     setActiveFile(fileName)
     setFileContent(content)
     setFileSha(sha)
+    setSaveVersion(version => version + 1)
+    setMessage(null)
   }, [])
 
   const handleSave = useCallback(async () => {
-    if (!activeFile) return
+    if (!activeFile) return false
     setFileLoading(true)
+    setMessage(null)
     try {
       const data = await apiFetch(`/api/file?name=${activeFile}`, {
         method: 'PUT',
@@ -77,55 +84,40 @@ export default function Admin() {
         body: JSON.stringify({ content: fileContent, sha: fileSha }),
       })
       setFileSha(data.sha)
-    } catch (err) {
-      alert('保存失败: ' + err.message)
+      setSaveVersion(version => version + 1)
+      setMessage({ type: 'success', text: '已保存到 GitHub。' })
+      return true
+    } catch (error) {
+      const conflict = error.status === 409 || /sha|conflict|不是最新/i.test(error.message)
+      setMessage({
+        type: 'error',
+        text: conflict ? '远端文件已变更。当前本地修改已保留，请先重新加载后手动合并。' : `保存失败：${error.message}`,
+        reload: conflict,
+      })
+      return false
     } finally {
       setFileLoading(false)
     }
   }, [activeFile, fileContent, fileSha])
 
-  if (loading) {
-    return <div className="loading-screen" style={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>加载中...</div>
-  }
-
-  if (!isAuthenticated) {
-    return <LoginForm onLogin={login} />
-  }
+  if (loading) return <div className="loading-screen" style={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>加载中...</div>
+  if (!isAuthenticated) return <LoginForm onLogin={login} />
 
   return (
     <DashboardLayout>
       {({ activeView, sidebarOpen, toggleSidebar }) => {
-        const isLinkYml = activeFile === 'link.yml'
-        const showSorter = activeView === 'sort' && isLinkYml
-
+        const showSorter = activeView === 'sort' && activeFile === 'link.yml'
         return (
           <>
-            <Sidebar
-              files={AVAILABLE_FILES}
-              activeFile={activeFile}
-              onFileSelect={handleFileSelect}
-              isOpen={sidebarOpen}
-              onToggle={toggleSidebar}
-            />
-
-            {activeView === 'dashboard' ? (
-              <LinkDashboard />
-            ) : showSorter ? (
-              <LinkSorter
-                content={fileContent}
-                onChange={setFileContent}
-                onSave={handleSave}
-                isLoading={fileLoading}
-              />
+            <Sidebar files={AVAILABLE_FILES} activeFile={activeFile} onFileSelect={handleFileSelect} isOpen={sidebarOpen} onToggle={toggleSidebar} />
+            {message && <div className={`save-message ${message.type}`} role="status">
+              <span>{message.text}</span>
+              {message.reload && <button onClick={() => loadFile()}>重新加载</button>}
+            </div>}
+            {activeView === 'dashboard' ? <LinkDashboard /> : showSorter ? (
+              <LinkSorter content={fileContent} onChange={setFileContent} onSave={handleSave} isLoading={fileLoading} />
             ) : (
-              <FileEditor
-                fileName={activeFile}
-                content={fileContent}
-                sha={fileSha}
-                isLoading={fileLoading}
-                onContentChange={setFileContent}
-                onSave={handleSave}
-              />
+              <FileEditor fileName={activeFile} content={fileContent} isLoading={fileLoading} onContentChange={setFileContent} onSave={handleSave} saveVersion={saveVersion} />
             )}
           </>
         )

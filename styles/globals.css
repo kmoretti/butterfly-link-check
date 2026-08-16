@@ -1316,6 +1316,81 @@ body {
   font-size: .8rem;
 }
 
+.link-row-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.link-extensions {
+  margin-top: 4px;
+}
+
+.link-extensions summary {
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: .78rem;
+  user-select: none;
+}
+
+.extension-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4px;
+  margin-top: 6px;
+}
+
+.sorter-hint {
+  margin-top: 4px;
+  color: var(--text-secondary);
+  font-size: .78rem;
+}
+
+.sorter-error, .save-message {
+  margin: 0 auto 16px;
+  max-width: 1200px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: .85rem;
+}
+
+.save-message {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.save-message.error, .sorter-error {
+  border-color: #fecaca;
+  color: var(--danger);
+}
+
+.save-message.success {
+  border-color: #bbf7d0;
+  color: var(--success);
+}
+
+.save-message button {
+  border: 1px solid currentColor;
+  border-radius: 4px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  padding: 4px 8px;
+}
+
+.sorter-input:focus-visible, .icon-btn-sm:focus-visible, .collapse-btn:focus-visible,
+.drag-handle:focus-visible, .add-section-btn:focus-visible, .save-btn:focus-visible,
+.save-message button:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
 /* ====== INSERT ZONE (拖拽插入线) ====== */
 .insert-zone {
   height: 6px;
@@ -1368,8 +1443,14 @@ body {
     flex-direction: column;
   }
 
-  .field-row {
+  .field-row, .extension-grid {
+    grid-template-columns: 1fr;
     flex-direction: column;
+  }
+
+  .link-row-actions {
+    width: 100%;
+    justify-content: flex-end;
   }
 
   .link-sort-item {
