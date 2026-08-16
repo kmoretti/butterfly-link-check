@@ -1,1 +1,10 @@
-[]
+- entry:
+    name: 友链检测测试
+    link: https://friendlink-check.invalid
+    avatar: https://friendlink-check.invalid/avatar.png
+    descr: 用于验证友链可达性检测与自动隔离流程
+    feeds: https://friendlink-check.invalid/feed.xml
+    friendslink: https://friendlink-check.invalid/links
+    siteshot: https://friendlink-check.invalid/siteshot.png
+  originalGroup: 网上邻居
+  originalIndex: 5

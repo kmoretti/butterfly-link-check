@@ -36,13 +36,6 @@
     siteshot: https://jsd.268682.xyz/gh/Kemeow0815/img@main/img/2xnz.webp
     feeds: https://2x.nz/rss.xml
     friendslink: https://2x.nz/friends
-  - name: 友链检测测试
-    link: https://friendlink-check.invalid
-    avatar: https://friendlink-check.invalid/avatar.png
-    descr: 用于验证友链可达性检测与自动隔离流程
-    feeds: https://friendlink-check.invalid/feed.xml
-    friendslink: https://friendlink-check.invalid/links
-    siteshot: https://friendlink-check.invalid/siteshot.png
 - class_name: 博客主题作者
   class_desc: 大佬们~
   link_list:
