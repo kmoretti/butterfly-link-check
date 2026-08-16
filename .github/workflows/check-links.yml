@@ -3,6 +3,7 @@ name: Check Links
 on:
   push:
     paths:
+      - 'link-false.yml'
       - 'link.yml'
       - 'manual_check.json'
       - 'check.py'
@@ -50,7 +51,7 @@ jobs:
       - name: Commit generated results
         id: generated-results
         run: |
-          git add public/check_links.json public/friend.json
+          git add public/check_links.json public/friend.json link-false.yml link.yml manual_check.json
           if ! git diff --cached --quiet; then
             git commit -m "chore: update link check results"
             git push

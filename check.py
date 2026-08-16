@@ -11,13 +11,16 @@ import requests
 import yaml
 
 YAML_FILE = os.getenv('YAML_FILE', 'link.yml')
+QUARANTINE_FILE = os.getenv('QUARANTINE_FILE', 'link-false.yml')
 OUTPUT_PATH = os.getenv('OUTPUT_PATH', os.path.join('public', 'check_links.json'))
-MANUAL_CHECK_FILE = os.getenv('MANUAL_CHECK_FILE', 'manual_check.json')
+STATUS_LEDGER_FILE = os.getenv('MANUAL_CHECK_FILE', 'manual_check.json')
 CF_WORKER_URL = os.getenv('CF_WORKER_URL', '')
 CF_WORKER_TOKEN = os.getenv('CF_WORKER_TOKEN', '')
 MAX_WORKERS = int(os.getenv('CHECK_WORKERS', '10'))
 DIRECT_TIMEOUT_SECONDS = 10
 FALLBACK_TIMEOUT_SECONDS = 30
+FAILURE_THRESHOLD = 3
+SUCCESS_THRESHOLD = 3
 
 USER_AGENT = (
     'Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
@@ -194,22 +197,66 @@ def check_link(url, checked_at, requester=requests, resolver=socket.getaddrinfo)
     return normalized, worker
 
 
-def load_manual_checks(path):
+def load_status_ledger(path):
     if not os.path.exists(path):
         return {}
 
     with open(path, 'r', encoding='utf-8') as file:
         raw = json.load(file)
-
     if not isinstance(raw, dict):
-        raise ValueError('manual_check.json 顶层必须是 URL 到状态的对象')
+        raise ValueError('manual_check.json 顶层必须是 URL 到状态记录的对象')
 
-    checks = {}
-    for url, status in raw.items():
+    ledger = {}
+    for url, record in raw.items():
         normalized = normalize_url(url)
-        if normalized and isinstance(status, str) and status.strip():
-            checks[normalized] = status.strip()
-    return checks
+        if not normalized or not isinstance(record, dict):
+            continue
+        status = record.get('status')
+        if status not in {'正常', '不可访问'}:
+            continue
+        ledger[normalized] = {
+            'status': status,
+            'consecutiveSuccesses': max(0, int(record.get('consecutiveSuccesses', 0))),
+            'consecutiveFailures': max(0, int(record.get('consecutiveFailures', 0))),
+            'checkedAt': record.get('checkedAt'),
+            'method': record.get('method'),
+            'httpStatus': record.get('httpStatus'),
+            'failureReason': record.get('failureReason'),
+        }
+    return ledger
+
+
+def write_status_ledger(path, ledger):
+    write_json(path, ledger)
+
+
+def load_quarantine_entries(path):
+    if not os.path.exists(path):
+        return []
+    with open(path, 'r', encoding='utf-8') as file:
+        entries = yaml.safe_load(file) or []
+    if not isinstance(entries, list):
+        raise ValueError('link-false.yml 顶层必须是隔离记录数组')
+    return [entry for entry in entries if isinstance(entry, dict)]
+
+
+def write_quarantine_entries(path, entries):
+    os.makedirs(os.path.dirname(path) or '.', exist_ok=True)
+    with open(path, 'w', encoding='utf-8') as file:
+        yaml.safe_dump(entries, file, allow_unicode=True, sort_keys=False)
+
+
+def write_groups(path, groups):
+    os.makedirs(os.path.dirname(path) or '.', exist_ok=True)
+    with open(path, 'w', encoding='utf-8') as file:
+        yaml.safe_dump(groups, file, allow_unicode=True, sort_keys=False)
+
+
+def write_json(path, payload):
+    os.makedirs(os.path.dirname(path) or '.', exist_ok=True)
+    with open(path, 'w', encoding='utf-8') as file:
+        json.dump(payload, file, ensure_ascii=False, indent=2)
+        file.write('\n')
 
 
 def collect_entries(groups):
@@ -226,34 +273,116 @@ def collect_entries(groups):
     return entries
 
 
-def check_entries(groups, manual_checks, requester=requests, resolver=socket.getaddrinfo, checked_at=None):
+def check_entries(groups, requester=requests, resolver=socket.getaddrinfo, checked_at=None):
     checked_at = checked_at or checked_at_now()
-    results = {}
-    pending = []
-
-    for group_index, link_index, entry in collect_entries(groups):
-        normalized = normalize_url(entry.get('link'))
-        if normalized and normalized in manual_checks:
-            results[(group_index, link_index)] = result(
-                manual_checks[normalized],
-                'manual',
-                checked_at,
-                manual_override=True,
-            )
-        else:
-            pending.append((group_index, link_index, entry.get('link')))
+    pending = [(group_index, link_index, entry.get('link')) for group_index, link_index, entry in collect_entries(groups)]
 
     def run(item):
         group_index, link_index, url = item
         _, check_result = check_link(url, checked_at, requester, resolver)
         return (group_index, link_index), check_result
 
-    if pending:
-        with concurrent.futures.ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
-            for key, check_result in executor.map(run, pending):
-                results[key] = check_result
+    with concurrent.futures.ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
+        return dict(executor.map(run, pending)) if pending else {}
 
-    return results
+
+def quarantine_groups(entries):
+    return [{'link_list': [item.get('entry') for item in entries]}]
+
+
+def check_quarantine_entries(entries, requester=requests, resolver=socket.getaddrinfo, checked_at=None):
+    return check_entries(quarantine_groups(entries), requester, resolver, checked_at)
+
+
+def result_urls(groups, results):
+    entries = {(group_index, link_index): entry for group_index, link_index, entry in collect_entries(groups)}
+    return {
+        key: normalize_url(entries.get(key, {}).get('link'))
+        for key in results
+    }
+
+
+def update_status_ledger(ledger, results, source):
+    updated = copy.deepcopy(ledger)
+    urls = result_urls(source, results)
+    updated_urls = set()
+    for index, check_result in results.items():
+        url = urls.get(index)
+        if not url or url in updated_urls:
+            continue
+        updated_urls.add(url)
+        previous = updated.get(url, {})
+        status = check_result['status']
+        updated[url] = {
+            'status': status,
+            'consecutiveSuccesses': previous.get('consecutiveSuccesses', 0) + 1 if status == '正常' else 0,
+            'consecutiveFailures': previous.get('consecutiveFailures', 0) + 1 if status == '不可访问' else 0,
+            'checkedAt': check_result['checkedAt'],
+            'method': check_result['method'],
+            'httpStatus': check_result['httpStatus'],
+            'failureReason': check_result['failureReason'],
+        }
+    return updated
+
+
+def apply_quarantine(groups, quarantined, ledger):
+    active = copy.deepcopy(groups)
+    quarantine = copy.deepcopy(quarantined)
+    quarantined_urls = {normalize_url(item.get('entry', {}).get('link')) for item in quarantine}
+    for group in active:
+        if not isinstance(group, dict) or not isinstance(group.get('link_list'), list):
+            continue
+        kept = []
+        for index, entry in enumerate(group['link_list']):
+            url = normalize_url(entry.get('link')) if isinstance(entry, dict) else None
+            if url and ledger.get(url, {}).get('consecutiveFailures', 0) >= FAILURE_THRESHOLD and url not in quarantined_urls:
+                quarantine.append({'entry': entry, 'originalGroup': group.get('class_name'), 'originalIndex': index})
+                quarantined_urls.add(url)
+            else:
+                kept.append(entry)
+        group['link_list'] = kept
+    return active, quarantine
+
+
+def apply_restorations(groups, quarantined, ledger):
+    active = copy.deepcopy(groups)
+    remaining = []
+    groups_by_name = {group.get('class_name'): group for group in active if isinstance(group, dict) and isinstance(group.get('link_list'), list)}
+    active_urls = {normalize_url(entry.get('link')) for _, _, entry in collect_entries(active)}
+    for item in quarantined:
+        entry = item.get('entry') if isinstance(item, dict) else None
+        url = normalize_url(entry.get('link')) if isinstance(entry, dict) else None
+        group = groups_by_name.get(item.get('originalGroup')) if isinstance(item, dict) else None
+        if url and ledger.get(url, {}).get('consecutiveSuccesses', 0) >= SUCCESS_THRESHOLD and group and url not in active_urls:
+            index = item.get('originalIndex')
+            if not isinstance(index, int) or index < 0 or index >= len(group['link_list']):
+                group['link_list'].append(entry)
+            else:
+                group['link_list'].insert(index, entry)
+            active_urls.add(url)
+        else:
+            remaining.append(item)
+    return active, remaining
+
+
+def active_ledger_urls(groups, quarantined):
+    urls = {normalize_url(entry.get('link')) for _, _, entry in collect_entries(groups)}
+    urls.update(normalize_url(item.get('entry', {}).get('link')) for item in quarantined if isinstance(item, dict))
+    return {url for url in urls if url}
+
+
+def merge_results_for_output(groups, active_groups, active_results, quarantined, quarantine_results):
+    results_by_url = {}
+    for source, results in ((active_groups, active_results), (quarantine_groups(quarantined), quarantine_results)):
+        for index, url in result_urls(source, results).items():
+            if url and url not in results_by_url:
+                results_by_url[url] = results[index]
+    return {
+        (group_index, link_index): results_by_url[url]
+        for group_index, link_index, entry in collect_entries(groups)
+        for url in [normalize_url(entry.get('link'))]
+        if url in results_by_url
+    }
 
 
 def build_output(groups, results):
@@ -264,60 +393,58 @@ def build_output(groups, results):
         for link_index, entry in enumerate(group['link_list']):
             if not isinstance(entry, dict):
                 continue
-            entry.update(results.get(
-                (group_index, link_index),
-                result('不可访问', 'validation', checked_at_now(), failure_reason='友链记录格式无效'),
-            ))
+            entry.update(results.get((group_index, link_index), result('不可访问', 'validation', checked_at_now(), failure_reason='友链记录格式无效')))
     return output
 
 
 def build_fcircle_output(groups, results):
     friends = []
     skipped_missing_fields = 0
-
     for group_index, link_index, entry in collect_entries(groups):
         check_result = results.get((group_index, link_index))
         if not check_result or check_result.get('status') != '正常':
             continue
-
         values = [entry.get('name'), entry.get('link'), entry.get('friendslink'), entry.get('avatar')]
         if not all(isinstance(value, str) and value.strip() for value in values):
             skipped_missing_fields += 1
             continue
-
         friends.append([value.strip() for value in values])
-
     return {'friends': friends}, skipped_missing_fields
 
 
 def main():
-    print(f'读取配置文件: {YAML_FILE}')
     with open(YAML_FILE, 'r', encoding='utf-8') as file:
         groups = yaml.safe_load(file) or []
-
     if not isinstance(groups, list):
         raise ValueError('link.yml 顶层必须是分组数组')
 
-    manual_checks = load_manual_checks(MANUAL_CHECK_FILE)
-    print(f'共发现 {len(collect_entries(groups))} 个链接，手动覆盖 {len(manual_checks)} 条')
-    results = check_entries(groups, manual_checks)
-    output = build_output(groups, results)
-    fcircle_output, skipped_missing_fields = build_fcircle_output(groups, results)
+    quarantined = load_quarantine_entries(QUARANTINE_FILE)
+    ledger = load_status_ledger(STATUS_LEDGER_FILE)
+    checked_groups = copy.deepcopy(groups)
+    checked_quarantined = copy.deepcopy(quarantined)
+    checked_at = checked_at_now()
+    active_results = check_entries(groups, checked_at=checked_at)
+    quarantine_results = check_quarantine_entries(quarantined, checked_at=checked_at)
+    ledger = update_status_ledger(ledger, active_results, groups)
+    ledger = update_status_ledger(ledger, quarantine_results, quarantine_groups(quarantined))
+    groups, quarantined = apply_quarantine(groups, quarantined, ledger)
+    groups, quarantined = apply_restorations(groups, quarantined, ledger)
+    ledger = {url: record for url, record in ledger.items() if url in active_ledger_urls(groups, quarantined)}
+
+    output_results = merge_results_for_output(checked_groups, checked_groups, active_results, checked_quarantined, quarantine_results)
+    output = build_output(checked_groups, output_results)
+    fcircle_output, skipped_missing_fields = build_fcircle_output(groups, output_results)
     fcircle_output_path = os.getenv('FCIRCLE_OUTPUT_PATH', os.path.join('public', 'friend.json'))
+    write_groups(YAML_FILE, groups)
+    write_quarantine_entries(QUARANTINE_FILE, quarantined)
+    write_status_ledger(STATUS_LEDGER_FILE, ledger)
+    write_json(OUTPUT_PATH, output)
+    write_json(fcircle_output_path, fcircle_output)
 
-    for path, payload in ((OUTPUT_PATH, output), (fcircle_output_path, fcircle_output)):
-        os.makedirs(os.path.dirname(path) or '.', exist_ok=True)
-        with open(path, 'w', encoding='utf-8') as file:
-            json.dump(payload, file, ensure_ascii=False, indent=2)
-            file.write('\n')
-
-    all_results = list(results.values())
+    all_results = list(active_results.values()) + list(quarantine_results.values())
     normal_count = sum(item['status'] == '正常' for item in all_results)
     print(f'检测结果已写入: {OUTPUT_PATH}')
-    print(f'fcircle 数据已写入: {fcircle_output_path}')
-    print(f'总计: {len(all_results)}')
-    print(f'正常: {normal_count}')
-    print(f'异常: {len(all_results) - normal_count}')
+    print(f'总计: {len(all_results)}，正常: {normal_count}，异常: {len(all_results) - normal_count}')
     print(f'fcircle 导出: {len(fcircle_output["friends"])}，缺少必填字段跳过: {skipped_missing_fields}')
 
 

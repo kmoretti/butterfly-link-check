@@ -7,6 +7,14 @@ import {
   updateScreenshot,
   updateTags,
 } from '../lib/link-yaml.mjs'
+import { AVAILABLE_FILES } from '../lib/github.js'
+
+test('admin file whitelist only exposes configured editable files', () => {
+  assert.deepEqual(
+    AVAILABLE_FILES.map(file => file.name),
+    ['link.yml', 'manual_check.json'],
+  )
+})
 
 test('parseLinkYml rejects unexpected structures', () => {
   assert.throws(() => parseLinkYml('class_name: invalid'), /顶层/)
