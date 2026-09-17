@@ -1,45 +1,45 @@
 {
   "https://blog.liushen.fun/": {
     "status": "正常",
-    "consecutiveSuccesses": 20,
+    "consecutiveSuccesses": 21,
     "consecutiveFailures": 0,
-    "checkedAt": "2026-09-15T03:31:59Z",
+    "checkedAt": "2026-09-17T03:33:38Z",
     "method": "direct-head",
     "httpStatus": 200,
     "failureReason": null
   },
   "https://blog.zhilu.site/": {
     "status": "正常",
-    "consecutiveSuccesses": 20,
+    "consecutiveSuccesses": 21,
     "consecutiveFailures": 0,
-    "checkedAt": "2026-09-15T03:31:59Z",
+    "checkedAt": "2026-09-17T03:33:38Z",
     "method": "direct-head",
     "httpStatus": 200,
     "failureReason": null
   },
   "https://www.imaegoo.com/": {
     "status": "正常",
-    "consecutiveSuccesses": 20,
+    "consecutiveSuccesses": 21,
     "consecutiveFailures": 0,
-    "checkedAt": "2026-09-15T03:31:59Z",
+    "checkedAt": "2026-09-17T03:33:38Z",
     "method": "direct-head",
     "httpStatus": 200,
     "failureReason": null
   },
   "https://blog.zhheo.com/": {
     "status": "正常",
-    "consecutiveSuccesses": 20,
+    "consecutiveSuccesses": 21,
     "consecutiveFailures": 0,
-    "checkedAt": "2026-09-15T03:31:59Z",
+    "checkedAt": "2026-09-17T03:33:38Z",
     "method": "direct-head",
     "httpStatus": 200,
     "failureReason": null
   },
   "https://2x.nz/": {
     "status": "正常",
-    "consecutiveSuccesses": 20,
+    "consecutiveSuccesses": 21,
     "consecutiveFailures": 0,
-    "checkedAt": "2026-09-15T03:31:59Z",
+    "checkedAt": "2026-09-17T03:33:38Z",
     "method": "direct-head",
     "httpStatus": 302,
     "failureReason": null
@@ -47,26 +47,26 @@
   "https://friendlink-check.invalid/": {
     "status": "不可访问",
     "consecutiveSuccesses": 0,
-    "consecutiveFailures": 20,
-    "checkedAt": "2026-09-15T03:31:59Z",
+    "consecutiveFailures": 21,
+    "checkedAt": "2026-09-17T03:33:38Z",
     "method": "validation",
     "httpStatus": null,
     "failureReason": "域名无法解析为公开 IP 地址"
   },
   "https://homulilly.com/": {
     "status": "正常",
-    "consecutiveSuccesses": 20,
+    "consecutiveSuccesses": 21,
     "consecutiveFailures": 0,
-    "checkedAt": "2026-09-15T03:31:59Z",
+    "checkedAt": "2026-09-17T03:33:38Z",
     "method": "direct-head",
     "httpStatus": 200,
     "failureReason": null
   },
   "https://cworld0.com/": {
     "status": "正常",
-    "consecutiveSuccesses": 20,
+    "consecutiveSuccesses": 21,
     "consecutiveFailures": 0,
-    "checkedAt": "2026-09-15T03:31:59Z",
+    "checkedAt": "2026-09-17T03:33:38Z",
     "method": "direct-head",
     "httpStatus": 200,
     "failureReason": null
